@@ -73,7 +73,8 @@ def get_os_token(username, password):
     """
     Get a security token from Keystone.
     """
-    body = '{"auth": {"tenantName": "' + username + '", ' \
+    # TODO: switch dot demo account
+    body = '{"auth": {"tenantName": "' + 'demo' + '", ' \
            '"passwordCredentials":{"username": "' + username + '", ' \
            '"password": "' + password + '"}}}'
 
@@ -187,9 +188,9 @@ class SystemTest(unittest.TestCase):
         get_qi_listing(self.token)
 
         # create VM
-        cats = ['m1-tiny; scheme="http://schemas.openstack'
+        cats = ['m1-nano; scheme="http://schemas.openstack'
                 '.org/template/resource#"',
-                'cirros-0-3-0-x86_64-uec; scheme="http://schemas.openstack'
+                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
                 '.org/template/os#"',
                 'compute; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
@@ -272,9 +273,9 @@ class SystemTest(unittest.TestCase):
         #print do_request('POST', '/mygroups/', heads)
 
         # create new VM
-        cats = ['m1-tiny; scheme="http://schemas.openstack'
+        cats = ['m1-nano; scheme="http://schemas.openstack'
                 '.org/template/resource#"',
-                'cirros-0-3-0-x86_64-uec; scheme="http://schemas.openstack'
+                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
                 '.org/template/os#"',
                 name + '; scheme="http://www.mystuff.org/sec#"',
                 'compute; scheme="http://schemas.ogf'
@@ -332,9 +333,9 @@ class SystemTest(unittest.TestCase):
         """
 
         # create new VM
-        cats = ['m1-tiny; scheme="http://schemas.openstack'
+        cats = ['m1-nano; scheme="http://schemas.openstack'
                 '.org/template/resource#"',
-                'cirros-0-3-0-x86_64-uec; scheme="http://schemas.openstack'
+                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
                 '.org/template/os#"',
                 'compute; scheme="http://schemas.ogf.org/occi/'
                 'infrastructure#"']
@@ -372,12 +373,14 @@ class SystemTest(unittest.TestCase):
         time.sleep(30)
 
         # deassociate storage vol - see #15
+        print 'booja 0'
         destroy_node(self.token, link_location)
 
         time.sleep(15)
-
+        print 'booja'
         destroy_node(self.token, vol_location)
 
+        print 'booja2'
         # wait
         cont = False
         while not cont:
@@ -387,6 +390,7 @@ class SystemTest(unittest.TestCase):
             else:
                 time.sleep(5)
 
+        print 'booja3'
         # Create a Image from an Active VM
         LOG.debug(trigger_action(self.token, vm_location + '?action='
                                                            'create_image',
@@ -402,9 +406,9 @@ class SystemTest(unittest.TestCase):
         Test the scaling operations
         """
         # create new VM
-        cats = ['itsy; scheme="http://schemas.openstack'
+        cats = ['m1-nano; scheme="http://schemas.openstack'
                 '.org/template/resource#"',
-                'cirros-0-3-0-x86_64-uec; scheme="http://schemas.openstack'
+                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
                 '.org/template/os#"',
                 'compute; scheme="http://schemas.ogf.org/occi/'
                 'infrastructure#"']
@@ -422,7 +426,7 @@ class SystemTest(unittest.TestCase):
         # scale up VM - see #17
         heads = HEADS.copy()
         heads['X-Auth-Token'] = self.token
-        heads['Category'] = 'bitsy; scheme="http://schemas.openstack' \
+        heads['Category'] = 'm1-micro; scheme="http://schemas.openstack' \
                             '.org/template/resource#"'
         do_request('POST', vm_location, heads)
 

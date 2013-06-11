@@ -19,9 +19,12 @@ Unittest for the Compute Backend.
 
 #pylint: disable=W0102,C0103,R0904
 
+from nova.openstack.common import gettextutils
+gettextutils.install('nova')
+
 import unittest
 
-# depenency from nova :-)
+# dependency from nova :-)
 import mox
 from nova.compute import vm_states
 
@@ -143,10 +146,10 @@ class TestComputeBackend(unittest.TestCase):
                 'vcpus': 1,
                 'memory_mb': 256
             })
-        self.mox.StubOutWithMock(nova_glue.storage, 'get_image_architecture')
-        nova_glue.storage.get_image_architecture(mox.IsA(object),
-                                                 mox.IsA(object)).\
-            AndReturn('foo')
+#        self.mox.StubOutWithMock(nova_glue.storage, 'get_image_architecture')
+#        nova_glue.storage.get_image_architecture(mox.IsA(object),
+#                                                 mox.IsA(object)).\
+#            AndReturn('foo')
 
         self.mox.ReplayAll()
 
@@ -175,8 +178,8 @@ class TestComputeBackend(unittest.TestCase):
                                   [self.os_template])
         res.attributes = {'occi.core.id': 'bar'}
 
-        self.mox.StubOutWithMock(nova_glue.vm, 'get_occi_state')
-        nova_glue.vm.get_occi_state(mox.IsA(object),
+        self.mox.StubOutWithMock(nova_glue.vm, 'get_vm_state')
+        nova_glue.vm.get_vm_state(mox.IsA(object),
                                     mox.IsA(object)).\
             AndReturn(('active', [infrastructure.STOP,
                                   infrastructure.SUSPEND,
@@ -188,10 +191,10 @@ class TestComputeBackend(unittest.TestCase):
                 'vcpus': 1,
                 'memory_mb': 256
             })
-        self.mox.StubOutWithMock(nova_glue.storage, 'get_image_architecture')
-        nova_glue.storage.get_image_architecture(mox.IsA(object),
-                                                 mox.IsA(object)).\
-            AndReturn('foo')
+#        self.mox.StubOutWithMock(nova_glue.storage, 'get_image_architecture')
+#        nova_glue.storage.get_image_architecture(mox.IsA(object),
+#                                                 mox.IsA(object)).\
+#            AndReturn('foo')
         self.mox.ReplayAll()
 
         self.backend.retrieve(res, self.sec_obj)
