@@ -22,20 +22,11 @@ Storage related glue :-)
 
 import random
 
-from nova import exception
-from nova import volume
-from nova.image import glance
-
-from cinder import exception as cinder_ex
+from nova import compute
 
 from occi import exceptions
 
-# Connection to the nova APIs
-from occi_os_api.nova_glue import vm
-
-VOLUME_API = volume.API()
-
-IMAGE_API = glance.get_default_image_service()
+VOLUME_API = compute.API().volume_api
 
 
 def create_storage(size, context, name=None, description=None):
@@ -72,10 +63,8 @@ def create_storage(size, context, name=None, description=None):
                                  size,
                                  disp_name,
                                  disp_descr)
-    except cinder_ex.VolumeSizeExceedsAvailableQuota:
-        raise AttributeError('The volume size quota has been reached!')
-    except cinder_ex.VolumeLimitExceeded:
-        raise AttributeError('The # of volumes quota has been reached!')
+    except Exception as e:
+        raise AttributeError(e.message)
 
 
 def delete_storage_instance(uid, context):
@@ -86,10 +75,9 @@ def delete_storage_instance(uid, context):
     context -- The os context.
     """
     try:
-        instance = get_storage(uid, context)
-        VOLUME_API.delete(context, instance)
-    except cinder_ex.InvalidVolume:
-        raise AttributeError('Volume is in wrong state or still attached!')
+        VOLUME_API.delete(context, uid)
+    except Exception as e:
+        raise AttributeError(e.message)
 
 
 def snapshot_storage_instance(uid, name, description, context):
@@ -102,47 +90,8 @@ def snapshot_storage_instance(uid, name, description, context):
     try:
         instance = get_storage(uid, context)
         VOLUME_API.create_snapshot(context, instance, name, description)
-    except cinder_ex.InvalidVolume:
-        raise AttributeError('Volume is in wrong state!')
-
-
-def get_image(uid, context):
-    """
-    Return details on an image.
-    """
-    try:
-        return IMAGE_API.show(context, uid)
-    except exception.ImageNotFound as err:
-        raise AttributeError(str(err))
-
-
-def get_image_architecture(uid, context):
-    """
-    Extract architecture from either:
-    - image name, title or metadata. The architecture is sometimes
-      encoded in the image's name
-    - db::glance::image_properties could be used reliably so long as the
-      information is supplied when registering an image with glance.
-    - else return a default of x86
-
-    uid -- id of the instance!
-    context -- The os context.
-    """
-    instance = vm.get_vm(uid, context)
-
-    arch = ''
-    uid = instance['image_ref']
-    img = IMAGE_API.show(context, uid)
-    img_properties = img['properties']
-    if 'arch' in img_properties:
-        arch = img['properties']['arch']
-    elif 'architecture' in img_properties:
-        arch = img['properties']['architecture']
-
-    if arch == '':
-        # if all attempts fail set it to a default value
-        arch = 'x86'
-    return arch
+    except Exception as e:
+        raise AttributeError(e.message)
 
 
 def get_storage(uid, context):
@@ -154,7 +103,7 @@ def get_storage(uid, context):
     """
     try:
         instance = VOLUME_API.get(context, uid)
-    except exception.NotFound:
+    except Exception as e:
         raise exceptions.HTTPError(404, 'Volume not found!')
     return instance
 

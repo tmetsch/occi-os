@@ -23,12 +23,11 @@ OCCI registry
 #R0201:method could be func.E1002:old style obj,R0914-R0912:# of branches
 #E1121:# positional args.
 #pylint: disable=R0201,E1002,R0914,R0912,E1121
+from decimal import _Log10Memoize
 
 import uuid
 
-from occi import registry as occi_registry
-from occi import core_model
-from occi.extensions import infrastructure
+from oslo.config import cfg
 
 from occi_os_api.backends import openstack
 from occi_os_api.extensions import os_addon
@@ -37,7 +36,11 @@ from occi_os_api.nova_glue import vm
 from occi_os_api.nova_glue import storage
 from occi_os_api.nova_glue import net
 
-from nova.flags import FLAGS
+from occi import registry as occi_registry
+from occi import core_model
+from occi.extensions import infrastructure
+
+CONF = cfg.CONF
 
 
 class OCCIRegistry(occi_registry.NonePersistentRegistry):
@@ -61,8 +64,8 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         self._setup_network()
 
     def set_hostname(self, hostname):
-        if FLAGS.occi_custom_location_hostname:
-            hostname = FLAGS.occi_custom_location_hostname
+        if CONF.occi_custom_location_hostname:
+            hostname = CONF.occi_custom_location_hostname
         super(OCCIRegistry, self).set_hostname(hostname)
 
     def get_extras(self, extras):
@@ -300,13 +303,13 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         result.append(entity)
 
         # 2. os and res templates
-        flavor_id = instance['instance_type'].flavorid
-        res_tmp = self.get_category('/' + flavor_id + '/', extras)
+        flavor_id = int(instance['instance_type_id'])
+        res_tmp = self.get_category('/' + str(flavor_id) + '/', extras)
         if res_tmp:
             entity.mixins.append(res_tmp)
 
         os_id = instance['image_ref']
-        image_id = storage.get_image(os_id, context)['id']
+        image_id = vm.retrieve_image(os_id, context)['id']
         image_tmp = self.get_category('/' + image_id + '/', extras)
         if image_tmp:
             entity.mixins.append(image_tmp)

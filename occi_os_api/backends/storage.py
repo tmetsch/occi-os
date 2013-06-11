@@ -23,7 +23,6 @@ Backends for the storage resource.
 #pylint: disable=R0201,W0232,W0613
 from datetime import date
 
-import logging
 import uuid
 
 from occi import backend
@@ -32,8 +31,6 @@ from occi.extensions import infrastructure
 
 from occi_os_api.nova_glue import storage
 from occi_os_api.nova_glue import vm
-
-LOG = logging.getLogger(__name__)
 
 
 class StorageBackend(backend.KindBackend, backend.ActionBackend):
@@ -124,8 +121,9 @@ class StorageBackend(backend.KindBackend, backend.ActionBackend):
             raise AttributeError("This action is currently no applicable.")
         elif action in [infrastructure.ONLINE, infrastructure.OFFLINE,
                         infrastructure.BACKUP, infrastructure.RESIZE]:
-            LOG.warn('The operations online, offline, backup and resize are '
-                     'currently not supported!')
+            pass
+            # TODO: 'The operations online, offline, backup and resize
+            # currently not supported!')
         elif action == infrastructure.SNAPSHOT:
             volume_id = entity.attributes['occi.core.id']
             name = volume_id + date.today().isoformat()
