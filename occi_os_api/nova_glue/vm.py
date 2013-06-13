@@ -24,8 +24,9 @@ VM related 'glue' :-)
 
 from nova import compute
 from nova import utils
-from nova.compute import flavors, task_states
+from nova.compute import task_states
 from nova.compute import vm_states
+from nova.compute import instance_types
 from nova.openstack.common import log
 
 from occi import exceptions
@@ -47,7 +48,6 @@ def create_vm(entity, context):
     context -- the os context.
     """
     # TODO: needs major overhaul!
-    from nova.compute import flavors
 
     if 'occi.compute.hostname' in entity.attributes:
         name = entity.attributes['occi.compute.hostname']
@@ -93,7 +93,7 @@ def create_vm(entity, context):
         raise AttributeError('Please provide a valid OS Template.')
 
     if resource_template:
-        inst_type = flavors.get_instance_type_by_flavor_id(resource_template.res_id)
+        inst_type = compute.instance_types.get_instance_type_by_flavor_id(resource_template.res_id)
     else:
         inst_type = None
     # make the call
@@ -163,7 +163,7 @@ def resize_vm(uid, flavor_id, context):
     instance = get_vm(uid, context)
     kwargs = {}
     try:
-        flavor = flavors.get_instance_type_by_flavor_id(flavor_id)
+        flavor = instance_types.get_instance_type_by_flavor_id(flavor_id)
         COMPUTE_API.resize(context, instance, flavor_id=flavor['flavorid'],
                            **kwargs)
         ready = False
