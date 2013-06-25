@@ -173,15 +173,14 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 msg = 'Not registering kernel/RAM image.'
                 LOG.debug(msg)
                 continue
-            ctg_term = occify_terms(img['name'])
+            ctg_term = occify_terms(img['id'])
             os_template = os_mixins.OsTemplate(term=ctg_term,
                                                scheme=template_schema,
                                                os_id=img['id'],
                                                related=[infrastructure.
                                                         OS_TEMPLATE],
                                                attributes=None,
-                                               title='This is an OS ' +
-                                                     img['name'] + ' VM image',
+                                               title='Image: %s' % img['name'],
                                                location='/' + ctg_term + '/')
 
             try:
@@ -205,7 +204,7 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 flavor_id=itype['flavorid'],
                 scheme=template_schema,
                 related=[infrastructure.RESOURCE_TEMPLATE],
-                title='This is an openstack ' + itype['name'] + ' flavor.',
+                title='Flavor: %s ' % itype['name'],
                 location='/' + quote(ctg_term) + '/')
 
             try:
@@ -235,13 +234,14 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
 
         for group in groups:
             if group['name'] not in excld_grps:
+                ctg_term = str(group["id"])
                 sec_mix = os_mixins.UserSecurityGroupMixin(
-                    term=str(group["id"]),
+                    term=ctg_term,
                     scheme=sec_grp,
                     related=[os_addon.SEC_GROUP],
                     attributes=None,
-                    title=group['name'],
-                    location='/security/' + quote(str(group['name'])) + '/')
+                    title="Security group: %s" % group['name'],
+                    location='/security/' + ctg_term + '/')
                 try:
                     self.registry.get_backend(sec_mix, extras)
                 except AttributeError:
