@@ -438,5 +438,5 @@ def retrieve_image(uid, context):
 def retrieve_images(context):
     return COMPUTE_API.image_service.detail(context)
 
-def retrieve_flavors():
-    return flavors.get_all_types()
+def retrieve_instance_types():
+    return instance_types.get_all_types()
