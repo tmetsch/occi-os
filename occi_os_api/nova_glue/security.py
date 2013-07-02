@@ -64,7 +64,7 @@ def retrieve_groups_by_project(context):
 
     context -- The os context.
     """
-    return SEC_API.list(context, context.project_id)
+    return SEC_API.list(context, project=context.project_id)
 
 
 def create_rule(name, iden, rule, context):
