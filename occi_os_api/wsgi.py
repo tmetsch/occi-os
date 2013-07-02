@@ -196,7 +196,7 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         Register the flavors as ResourceTemplates to which the user has access.
         """
         template_schema = 'http://schemas.openstack.org/template/resource#'
-        os_flavours = vm.retrieve_flavors()
+        os_flavours = vm.retrieve_instance_types()
 
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])
