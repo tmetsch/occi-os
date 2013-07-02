@@ -86,6 +86,8 @@ def add_floating_ip(uid, pool_name, context):
 
     # FIXME: currently quantum driver has a notimplemented here :-(
     # fixed_ips = NETWORK_API.get_fixed_ip(uid, context)
+    # NOTE(aloga): nova-network is still suported in Grizzly, so we
+    # should not drop support for it.
     tmp = NETWORK_API.get_instance_nw_info(context, vm_instance)[0]
     fixed_ip = tmp.fixed_ips()[0]['address']
 
