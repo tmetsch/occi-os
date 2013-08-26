@@ -20,19 +20,11 @@
 Security related 'glue'
 """
 
-# L8R: Check exception handling of this routines!
-
 from nova import compute
-from nova import db
-from nova.flags import FLAGS
-from nova.openstack.common import importutils
 
-from occi import exceptions
+SEC_API = compute.API().security_group_api
 
-# connect to nova
-COMPUTE_API = compute.API()
-
-SEC_HANDLER = importutils.import_object(FLAGS.security_group_handler)
+# TODO: exception handling
 
 
 def create_group(name, description, context):
@@ -43,64 +35,50 @@ def create_group(name, description, context):
     description -- Description.
     context -- The os context.
     """
-    if db.security_group_exists(context, context.project_id, name):
-        raise AttributeError('Security group already exists: ' + name)
-
-    group = {'user_id': context.user_id,
-             'project_id': context.project_id,
-             'name': name,
-             'description': description}
-    db.security_group_create(context, group)
-    SEC_HANDLER.trigger_security_group_create_refresh(context, group)
+    SEC_API.create_security_group(context, name, description)
 
 
-def remove_group(group_id, context):
+def remove_group(group, context):
     """
     Remove a security group.
 
-    group_id -- the group.
+    group -- the security group.
     context -- The os context.
     """
-    try:
-        #if db.security_group_in_use(context, group_id):
-        #    raise AttributeError('Security group is still in use')
-
-        db.security_group_destroy(context, group_id)
-        SEC_HANDLER.trigger_security_group_destroy_refresh(
-            context, group_id)
-
-    except Exception as error:
-        raise AttributeError(error)
+    SEC_API.destroy(context, group)
 
 
-def retrieve_group(mixin_term, context):
+def retrieve_group_by_name(name, context):
     """
     Retrieve the security group associated with the security mixin.
 
     mixin_term -- The term of the mixin representing the group.
     context -- The os context.
     """
-    try:
-        sec_group = db.security_group_get_by_name(context, context.project_id,
-                                                  mixin_term)
-    except Exception as err:
-        msg = err.message
-        raise AttributeError(msg)
-
-    return sec_group
+    return SEC_API.list(context, names=[name])[0]
 
 
-def create_rule(rule, context):
+def retrieve_groups_by_project(context):
+    """
+    Retrieve list of security groups by project.
+
+    context -- The os context.
+    """
+    return SEC_API.list(context, project=context.project_id)
+
+
+def create_rule(name, iden, rule, context):
     """
     Create a security rule.
 
     rule -- The rule.
     context -- The os context.
     """
+    # TODO: needs work!
     try:
-        db.security_group_rule_create(context, rule)
-    except Exception as err:
-        raise AttributeError('Unable to create rule: ' + str(err))
+        SEC_API.add_rules(context, iden, name, rule)
+    except Exception as e:
+        raise AttributeError(e.message)
 
 
 def remove_rule(rule, context):
@@ -111,13 +89,7 @@ def remove_rule(rule, context):
     context -- The os context.
     """
     group_id = rule['parent_group_id']
-
-    try:
-        db.security_group_rule_destroy(context, rule['id'])
-        SEC_HANDLER.trigger_security_group_rule_destroy_refresh(context,
-                                                                [rule['id']])
-    except Exception as err:
-        raise AttributeError('Unable to remove rule: ' + str(err))
+    SEC_API.remove_rules(context, group_id, rule['id'])
 
 
 def retrieve_rule(uid, context):
@@ -127,8 +99,4 @@ def retrieve_rule(uid, context):
     uid -- Id of the rule (entity.attributes['occi.core.id'])
     context -- The os context.
     """
-    try:
-        return db.security_group_rule_get(context,
-                                          int(uid))
-    except Exception:
-        raise exceptions.HTTPError(404, 'Rule not found!')
+    SEC_API.get_rule(context, int(uid))

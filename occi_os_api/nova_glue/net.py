@@ -22,17 +22,14 @@ Network related 'glue' :-)
 
 import logging
 
-from nova import network
-from nova import exception
 from nova import compute
-from nova.compute import utils
 
 from occi_os_api.nova_glue import vm
 
 # Connect to nova :-)
 
-NETWORK_API = network.API()
-COMPUTE_API = compute.API()
+NETWORK_API = compute.API().network_api
+
 
 LOG = logging.getLogger(__name__)
 
@@ -87,26 +84,21 @@ def add_floating_ip(uid, pool_name, context):
     """
     vm_instance = vm.get_vm(uid, context)
 
-    cached_nwinfo = utils.get_nw_info_for_instance(vm_instance)
-    if not cached_nwinfo:
-        raise AttributeError('No nw_info cache associated with instance')
-
-    fixed_ips = cached_nwinfo.fixed_ips()
-    if not fixed_ips:
-        raise AttributeError('No fixed ips associated to instance')
+    # FIXME: currently quantum driver has a notimplemented here :-(
+    # fixed_ips = NETWORK_API.get_fixed_ip(uid, context)
+    # NOTE(aloga): nova-network is still suported in Grizzly, so we
+    # should not drop support for it.
+    tmp = NETWORK_API.get_instance_nw_info(context, vm_instance)[0]
+    fixed_ip = tmp.fixed_ips()[0]['address']
 
     float_address = NETWORK_API.allocate_floating_ip(context, pool_name)
 
     try:
-        address = fixed_ips[0]['address']
+        address = fixed_ip
         NETWORK_API.associate_floating_ip(context, vm_instance,
                                           float_address, address)
-    except exception.FloatingIpAssociated:
-        msg = 'floating ip is already associated'
-        raise AttributeError(msg)
-    except exception.NoFloatingIpInterface:
-        msg = 'l3driver call to add floating ip failed'
-        raise AttributeError(msg)
+    except Exception as e:
+        raise AttributeError(e.message)
     return float_address
 
 
@@ -123,6 +115,5 @@ def remove_floating_ip(uid, address, context):
     try:
         NETWORK_API.disassociate_floating_ip(context, vm_instance, address)
         NETWORK_API.release_floating_ip(context, address)
-    except exception.FloatingIpNotAssociated:
-        raise AttributeError('Unable to disassociate an unassociated '
-                             'floating up!')
+    except Exception as e:
+        raise AttributeError(e.message)

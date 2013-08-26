@@ -22,6 +22,9 @@ Test network resource backend.
 
 #pylint: disable=W0102,C0103,R0904
 
+from nova.openstack.common import gettextutils
+gettextutils.install('nova')
+
 import mox
 import unittest
 from occi import core_model

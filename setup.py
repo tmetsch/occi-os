@@ -49,7 +49,7 @@ setup(
               'occi_os_api.nova_glue'],
     zip_safe=False,
     install_requires=[
-        'setuptools',
+        'setuptools', 'nova'
         ],
     entry_points='''
       [paste.app_factory]

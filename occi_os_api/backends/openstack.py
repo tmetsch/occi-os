@@ -120,9 +120,9 @@ class SecurityGroupBackend(backend.UserDefinedMixinBackend):
         Deletes the specified security group.
         """
         context = extras['nova_ctx']
-        security_group = security.retrieve_group(category.term,
-                                                 extras['nova_ctx'])
-        security.remove_group(security_group.id, context)
+        security_group = security.retrieve_group_by_name(category.term,
+                                                         extras['nova_ctx'])
+        security.remove_group(security_group, context)
 
 
 class SecurityRuleBackend(backend.KindBackend):
@@ -138,8 +138,8 @@ class SecurityRuleBackend(backend.KindBackend):
         """
         sec_mixin = get_sec_mixin(entity)
         context = extras['nova_ctx']
-        security_group = security.retrieve_group(sec_mixin.term,
-                                                 context)
+        security_group = security.retrieve_group_by_name(sec_mixin.term,
+                                                         context)
         sg_rule = make_sec_rule(entity, security_group['id'])
 
         if security_group_rule_exists(security_group, sg_rule):
@@ -148,7 +148,8 @@ class SecurityRuleBackend(backend.KindBackend):
                   str(security_group)
             raise AttributeError(msg)
 
-        security.create_rule(sg_rule, context)
+        security.create_rule(sec_mixin.term, security_group['id'], [sg_rule],
+                             context)
 
     def delete(self, entity, extras):
         """
@@ -168,6 +169,7 @@ def make_sec_rule(entity, sec_grp_id):
     """
     Create and validate the security rule.
     """
+    # TODO: remove this one!
     name = random.randrange(0, 99999999)
     sg_rule = {'id': name,
                'parent_group_id': sec_grp_id}

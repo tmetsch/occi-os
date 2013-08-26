@@ -23,14 +23,10 @@ OCCI WSGI app :-)
 # W0613:unused args,R0903:too few pub methods
 # pylint: disable=W0613,R0903
 
-import logging
+from oslo.config import cfg
 
-from nova import flags
 from nova import wsgi
-from nova import db
-from nova.image import glance
-from nova.compute import instance_types
-from nova.openstack.common import cfg
+from nova.openstack.common import log
 
 from occi_os_api import registry
 from occi_os_api.backends import compute
@@ -39,6 +35,8 @@ from occi_os_api.backends import network
 from occi_os_api.backends import storage
 from occi_os_api.extensions import os_mixins
 from occi_os_api.extensions import os_addon
+from occi_os_api.nova_glue import vm
+from occi_os_api.nova_glue import security
 
 from occi import backend
 from occi import core_model
@@ -47,7 +45,7 @@ from occi.extensions import infrastructure
 
 from urllib import quote
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 #Setup options
 OCCI_OPTS = [
@@ -59,8 +57,8 @@ OCCI_OPTS = [
                help="Override OCCI location hostname with custom value")
 ]
 
-FLAGS = flags.FLAGS
-FLAGS.register_opts(OCCI_OPTS)
+CONF = cfg.CONF
+CONF.register_opts(OCCI_OPTS)
 
 MIXIN_BACKEND = backend.MixinBackend()
 
@@ -166,9 +164,8 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         information retrieved from glance (shared and user-specific).
         """
         template_schema = 'http://schemas.openstack.org/template/os#'
-        image_service = glance.get_default_image_service()
 
-        images = image_service.detail(extras['nova_ctx'])
+        images = vm.retrieve_images(extras['nova_ctx'])
 
         for img in images:
             # If the image is a kernel or ram one
@@ -178,15 +175,14 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 msg = 'Not registering kernel/RAM image.'
                 LOG.debug(msg)
                 continue
-            ctg_term = occify_terms(img['name'])
+            ctg_term = occify_terms(img['id'])
             os_template = os_mixins.OsTemplate(term=ctg_term,
                                                scheme=template_schema,
                                                os_id=img['id'],
                                                related=[infrastructure.
                                                         OS_TEMPLATE],
                                                attributes=None,
-                                               title='This is an OS ' +
-                                                     img['name'] + ' VM image',
+                                               title='Image: %s' % img['name'],
                                                location='/' + ctg_term + '/')
 
             try:
@@ -201,7 +197,7 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         Register the flavors as ResourceTemplates to which the user has access.
         """
         template_schema = 'http://schemas.openstack.org/template/resource#'
-        os_flavours = instance_types.get_all_types()
+        os_flavours = vm.retrieve_instance_types()
 
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])
@@ -210,7 +206,7 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 flavor_id=itype['flavorid'],
                 scheme=template_schema,
                 related=[infrastructure.RESOURCE_TEMPLATE],
-                title='This is an openstack ' + itype['name'] + ' flavor.',
+                title='Flavor: %s ' % itype['name'],
                 location='/' + quote(ctg_term) + '/')
 
             try:
@@ -235,20 +231,19 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                     os_addon.SEC_GROUP in cat.related):
                 excld_grps.append(cat.term)
 
-        groups = db.security_group_get_by_project(extras['nova_ctx'],
-                                                  extras['nova_'
-                                                         'ctx'].project_id)
+        groups = security.retrieve_groups_by_project(extras['nova_ctx'])
         sec_grp = 'http://schemas.openstack.org/infrastructure/security/group#'
 
         for group in groups:
             if group['name'] not in excld_grps:
+                ctg_term = str(group["id"])
                 sec_mix = os_mixins.UserSecurityGroupMixin(
-                    term=str(group["id"]),
+                    term=ctg_term,
                     scheme=sec_grp,
                     related=[os_addon.SEC_GROUP],
                     attributes=None,
-                    title=group['name'],
-                    location='/security/' + quote(str(group['name'])) + '/')
+                    title="Security group: %s" % group['name'],
+                    location='/security/' + ctg_term + '/')
                 try:
                     self.registry.get_backend(sec_mix, extras)
                 except AttributeError:

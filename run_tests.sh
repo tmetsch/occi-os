@@ -16,11 +16,7 @@ if [ "$?" -ne 0 ]; then
   nosetests --with-coverage --cover-erase --cover-package=occi_os_api --exclude=system
 else
   echo "Please make sure that the following line is available in nova.conf:"
-  echo "allow_resize_to_same_host=True libvirt_inject_password=True enabled_apis=ec2,occiapi,osapi_compute,osapi_volume,metadata )"
-
-  source ../devstack/openrc
-  nova-manage flavor create --name=itsy --cpu=1 --memory=32 --flavor=98 --root_gb=1 --ephemeral_gb=1
-  nova-manage flavor create --name=bitsy --cpu=1 --memory=64 --flavor=99 --root_gb=1 --ephemeral_gb=1
+  echo "allow_resize_to_same_host=True libvirt_inject_password=True enabled_apis=ec2,occiapi,osapi_compute,osapi_volume,metadata"
   nosetests --with-coverage --cover-erase --cover-package=occi_os_api
 fi
 
