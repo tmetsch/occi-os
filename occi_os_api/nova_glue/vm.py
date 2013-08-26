@@ -82,6 +82,9 @@ def create_vm(entity, context):
             key_name = entity.attributes[attr]
             attr = 'org.openstack.credentials.publickey.data'
             key_data = entity.attributes[attr]
+        elif mixin == os_addon.OS_USER_DATA_EXT:
+            attr = 'org.openstack.compute.user_data'
+            user_data = entity.attributes[attr]
         # Look for security group. If the group is non-existant, the
         # call to create will fail.
         if os_addon.SEC_GROUP in mixin.related:
