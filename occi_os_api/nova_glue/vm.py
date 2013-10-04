@@ -319,12 +319,9 @@ def detach_volume(volume_id, context):
     context -- the os context.
     """
     try:
-        volume = COMPUTE_API.volume_api.get(context, volume_id)
-        instance_id = volume['instance_uuid']
-        instance = get_vm(instance_id, context)
-        COMPUTE_API.detach_volume(context, instance, volume)
+        COMPUTE_API.detach_volume(context, volume_id)
     except Exception as e:
-        raise AttributeError(e.message)
+        raise AttributeError(e)
 
 
 def set_password_for_vm(uid, password, context):

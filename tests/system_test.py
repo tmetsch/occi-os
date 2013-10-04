@@ -373,14 +373,11 @@ class SystemTest(unittest.TestCase):
         time.sleep(30)
 
         # deassociate storage vol - see #15
-        print 'booja 0'
         destroy_node(self.token, link_location)
 
         time.sleep(15)
-        print 'booja'
         destroy_node(self.token, vol_location)
 
-        print 'booja2'
         # wait
         cont = False
         while not cont:
@@ -390,7 +387,6 @@ class SystemTest(unittest.TestCase):
             else:
                 time.sleep(5)
 
-        print 'booja3'
         # Create a Image from an Active VM
         LOG.debug(trigger_action(self.token, vm_location + '?action='
                                                            'create_image',
