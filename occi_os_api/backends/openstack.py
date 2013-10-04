@@ -148,8 +148,9 @@ class SecurityRuleBackend(backend.KindBackend):
                   str(security_group)
             raise AttributeError(msg)
 
-        security.create_rule(sec_mixin.term, security_group['id'], [sg_rule],
-                             context)
+        rule = security.create_rule(sec_mixin.term, security_group['id'],
+                                    [sg_rule], context)
+        entity.attributes['occi.core.id'] = str(rule['id'])
 
     def delete(self, entity, extras):
         """
@@ -173,7 +174,6 @@ def make_sec_rule(entity, sec_grp_id):
     name = random.randrange(0, 99999999)
     sg_rule = {'id': name,
                'parent_group_id': sec_grp_id}
-    entity.attributes['occi.core.id'] = str(sg_rule['id'])
     prot = \
         entity.attributes['occi.network.security.protocol'].lower().strip()
     if prot in ('tcp', 'udp', 'icmp'):

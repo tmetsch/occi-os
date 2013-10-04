@@ -23,7 +23,6 @@ OCCI registry
 #R0201:method could be func.E1002:old style obj,R0914-R0912:# of branches
 #E1121:# positional args.
 #pylint: disable=R0201,E1002,R0914,R0912,E1121
-from decimal import _Log10Memoize
 
 import uuid
 

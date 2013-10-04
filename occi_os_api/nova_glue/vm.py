@@ -365,7 +365,7 @@ def get_vm(uid, context):
     """
     try:
         instance = COMPUTE_API.get(context, uid)
-    except Exception as e:
+    except Exception:
         raise exceptions.HTTPError(404, 'VM not found!')
     return instance
 
@@ -421,7 +421,6 @@ def get_vm_state(uid, context):
 
 # Image management
 
-# TODO: add comments
 
 def retrieve_image(uid, context):
     """
@@ -432,8 +431,16 @@ def retrieve_image(uid, context):
     except Exception as e:
         raise AttributeError(e.message)
 
+
 def retrieve_images(context):
+    """
+    Retrieve list of images.
+    """
     return COMPUTE_API.image_service.detail(context)
 
+
 def retrieve_instance_types():
+    """
+    Retrieve all instance types.
+    """
     return instance_types.get_all_types()

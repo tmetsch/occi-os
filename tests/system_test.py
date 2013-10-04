@@ -307,11 +307,12 @@ class SystemTest(unittest.TestCase):
         destroy_node(self.token, float_ip_location)
 
         # change pw
-        LOG.debug(trigger_action(self.token, vm_location + '?action=chg_pwd',
-                                 'chg_pwd; scheme="http://schemas.'
-                                 'openstack.org/instance/action#"',
-                                 'org.openstack.credentials.admin_pwd'
-                                 '="new_pass"'))
+        # XXX: currently not working as OS libvirt driver does not support it.
+        #LOG.debug(trigger_action(self.token, vm_location + '?action=chg_pwd',
+        #                         'chg_pwd; scheme="http://schemas.'
+        #                         'openstack.org/instance/action#"',
+        #                         'org.openstack.credentials.admin_pwd'
+        #                         '="new_pass"'))
 
         # clean VM
         destroy_node(self.token, vm_location)
@@ -325,7 +326,7 @@ class SystemTest(unittest.TestCase):
         heads = HEADS.copy()
         heads['X-Auth-Token'] = self.token
         heads['Category'] = name + '; scheme="http://www.mystuff.org/sec#"'
-        #do_request('DELETE', '/-/', heads)
+        do_request('DELETE', '/-/', heads)
 
     def test_storage_stuff(self):
         """

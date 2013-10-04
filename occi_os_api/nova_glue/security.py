@@ -76,7 +76,7 @@ def create_rule(name, iden, rule, context):
     """
     # TODO: needs work!
     try:
-        SEC_API.add_rules(context, iden, name, rule)
+        return SEC_API.add_rules(context, iden, name, rule)[0]
     except Exception as e:
         raise AttributeError(e.message)
 
@@ -89,7 +89,7 @@ def remove_rule(rule, context):
     context -- The os context.
     """
     group_id = rule['parent_group_id']
-    SEC_API.remove_rules(context, group_id, rule['id'])
+    SEC_API.remove_rules(context, group_id, [rule['id']])
 
 
 def retrieve_rule(uid, context):
@@ -99,4 +99,4 @@ def retrieve_rule(uid, context):
     uid -- Id of the rule (entity.attributes['occi.core.id'])
     context -- The os context.
     """
-    SEC_API.get_rule(context, int(uid))
+    return SEC_API.get_rule(context, uid)

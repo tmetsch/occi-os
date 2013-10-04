@@ -104,7 +104,7 @@ def get_storage(uid, context):
     """
     try:
         instance = VOLUME_API.get(context, uid)
-    except Exception as e:
+    except Exception:
         raise exceptions.HTTPError(404, 'Volume not found!')
     return instance
 
