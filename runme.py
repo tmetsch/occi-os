@@ -37,7 +37,6 @@ from nova.openstack.common import log as logging
 
 if __name__ == '__main__':
     config.parse_args(sys.argv)
-    logging.setup("nova")
     utils.monkey_patch()
     SERVER = service.WSGIService('occiapi')
     service.serve(SERVER)

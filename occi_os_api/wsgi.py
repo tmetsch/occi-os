@@ -162,8 +162,15 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         information retrieved from glance (shared and user-specific).
         """
         template_schema = 'http://schemas.openstack.org/template/os#'
-
         images = vm.retrieve_images(extras['nova_ctx'])
+
+        # delete those which are delete through different API.
+        os_lst = [occify_terms(item['name']) for item in images]
+        occi_lst = [item.term for item in self.registry.get_categories(
+            extras) if item.scheme == template_schema]
+        for item in list(set(occi_lst) - set(os_lst)):
+            self.registry.delete_mixin(os_mixins.OsTemplate(item,
+                                                            template_schema))
 
         for img in images:
             # If the image is a kernel or ram one
@@ -198,6 +205,14 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         template_schema = 'http://schemas.openstack.org/template/resource#'
         os_flavours = vm.retrieve_instance_types()
 
+        # delete those which are delete through different API.
+        os_lst = [occify_terms(item) for item in os_flavours.keys()]
+        occi_lst = [item.term for item in self.registry.get_categories(
+            extras) if item.scheme == template_schema]
+        for item in list(set(occi_lst) - set(os_lst)):
+            self.registry.delete_mixin(os_mixins.ResourceTemplate(item,
+                                                              template_schema))
+
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])
             resource_template = os_mixins.ResourceTemplate(
@@ -207,7 +222,6 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 related=[infrastructure.RESOURCE_TEMPLATE],
                 title='This is an openstack ' + itype['name'] + ' flavor.',
                 location='/' + quote(ctg_term) + '/')
-
             try:
                 self.registry.get_backend(resource_template, extras)
             except AttributeError:
