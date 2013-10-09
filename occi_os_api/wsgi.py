@@ -170,7 +170,8 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
             extras) if item.scheme == template_schema]
         for item in list(set(occi_lst) - set(os_lst)):
             self.registry.delete_mixin(os_mixins.OsTemplate(item,
-                                                            template_schema))
+                                                            template_schema),
+                                       extras)
 
         for img in images:
             # If the image is a kernel or ram one
@@ -211,7 +212,8 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
             extras) if item.scheme == template_schema]
         for item in list(set(occi_lst) - set(os_lst)):
             self.registry.delete_mixin(os_mixins.ResourceTemplate(item,
-                                                              template_schema))
+                                                              template_schema),
+                                       extras)
 
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])
