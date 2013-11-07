@@ -26,7 +26,7 @@ from nova import compute
 from nova import utils
 from nova.compute import task_states
 from nova.compute import vm_states
-from nova.compute import instance_types
+from nova.compute import flavors
 from nova.openstack.common import log
 
 from occi import exceptions
@@ -96,7 +96,7 @@ def create_vm(entity, context):
         raise AttributeError('Please provide a valid OS Template.')
 
     if resource_template:
-        inst_type = compute.instance_types.get_instance_type_by_flavor_id(resource_template.res_id)
+        inst_type = flavors.get_flavor_by_flavor_id(resource_template.res_id)
     else:
         inst_type = None
     # make the call
@@ -166,7 +166,7 @@ def resize_vm(uid, flavor_id, context):
     instance = get_vm(uid, context)
     kwargs = {}
     try:
-        flavor = instance_types.get_instance_type_by_flavor_id(flavor_id)
+        flavor = flavors.get_flavor_by_flavor_id(flavor_id)
         COMPUTE_API.resize(context, instance, flavor_id=flavor['flavorid'],
                            **kwargs)
         ready = False
@@ -429,6 +429,7 @@ def get_vm_state(uid, context):
 
 # TODO: add comments
 
+
 def retrieve_image(uid, context):
     """
     Return details on an image.
@@ -438,8 +439,10 @@ def retrieve_image(uid, context):
     except Exception as e:
         raise AttributeError(e.message)
 
+
 def retrieve_images(context):
     return COMPUTE_API.image_service.detail(context)
 
-def retrieve_instance_types():
-    return instance_types.get_all_types()
+
+def retrieve_flavors():
+    return flavors.get_all_flavors()
