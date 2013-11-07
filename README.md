@@ -12,7 +12,7 @@ Usage
 
 0. Install dependencies: `pip install pyssf`
 1. Install this egg: `python setup.py install` (or `pip install
-openstackocci-grizzly`)
+openstackocci-havana`)
 2. Configure OpenStack - Add application to `api-paste.ini` of nova and
 enable the API
 
@@ -39,7 +39,7 @@ picked yourself):
 	# pipeline = sizelimit authtoken keystonecontext ratelimit occiapp
 
 	[app:occiapp]
-	use = egg:openstackocci-grizzly#occi_app
+	use = egg:openstackocci-havana#occi_app
 
 Make sure the API (name from above) is enabled in `nova.conf`:
 
