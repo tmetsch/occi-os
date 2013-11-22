@@ -26,7 +26,7 @@ from nova import compute
 from nova import utils
 from nova.compute import task_states
 from nova.compute import vm_states
-from nova.compute import instance_types
+from nova.compute import flavors
 from nova.openstack.common import log
 
 from occi import exceptions
@@ -82,6 +82,9 @@ def create_vm(entity, context):
             key_name = entity.attributes[attr]
             attr = 'org.openstack.credentials.publickey.data'
             key_data = entity.attributes[attr]
+        elif mixin == os_addon.OS_USER_DATA_EXT:
+            attr = 'org.openstack.compute.user_data'
+            user_data = entity.attributes[attr]
         # Look for security group. If the group is non-existant, the
         # call to create will fail.
         if os_addon.SEC_GROUP in mixin.related:
@@ -93,7 +96,7 @@ def create_vm(entity, context):
         raise AttributeError('Please provide a valid OS Template.')
 
     if resource_template:
-        inst_type = compute.instance_types.get_instance_type_by_flavor_id(resource_template.res_id)
+        inst_type = flavors.get_flavor_by_flavor_id(resource_template.res_id)
     else:
         inst_type = None
     # make the call
@@ -163,7 +166,7 @@ def resize_vm(uid, flavor_id, context):
     instance = get_vm(uid, context)
     kwargs = {}
     try:
-        flavor = instance_types.get_instance_type_by_flavor_id(flavor_id)
+        flavor = flavors.get_flavor_by_flavor_id(flavor_id)
         COMPUTE_API.resize(context, instance, flavor_id=flavor['flavorid'],
                            **kwargs)
         ready = False
@@ -422,6 +425,7 @@ def get_vm_state(uid, context):
 # Image management
 
 
+
 def retrieve_image(uid, context):
     """
     Return details on an image.
@@ -439,8 +443,5 @@ def retrieve_images(context):
     return COMPUTE_API.image_service.detail(context)
 
 
-def retrieve_instance_types():
-    """
-    Retrieve all instance types.
-    """
-    return instance_types.get_all_types()
+def retrieve_flavors():
+    return flavors.get_all_flavors()
