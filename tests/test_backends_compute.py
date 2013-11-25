@@ -180,7 +180,7 @@ class TestComputeBackend(unittest.TestCase):
 
         self.mox.StubOutWithMock(nova_glue.vm, 'get_vm_state')
         nova_glue.vm.get_vm_state(mox.IsA(object),
-                                    mox.IsA(object)).\
+                                  mox.IsA(object)).\
             AndReturn(('active', [infrastructure.STOP,
                                   infrastructure.SUSPEND,
                                   infrastructure.RESTART]))
