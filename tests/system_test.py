@@ -20,6 +20,7 @@ Will test the OS occiosapi against a local running instance.
 
 #pylint: disable=W0102,C0103,R0904
 
+import base64
 import json
 import sys
 import time
@@ -449,6 +450,34 @@ class SystemTest(unittest.TestCase):
         do_request('POST', vm_location, heads)
 
         # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="active"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
+        destroy_node(self.token, vm_location)
+
+    def test_userdata(self):
+        """
+        Test passing userdata to the VM
+        """
+        user_data = base64.b64encode("1, 2, 3 this is a test")
+        # create new VM
+        cats = [RES_TPL_NANO,
+                self.os_tpl,
+                'user_data; '
+                'scheme="http://schemas.openstack.org/compute/instance#"; ',
+                'compute; scheme="http://schemas.ogf.org/occi/'
+                'infrastructure#"']
+        attrs = ['org.openstack.compute.user_data="%s"' % user_data] 
+        vm_location = create_node(self.token, cats, attrs)
+
+        # XXX
+        # is there any way to test that the data is there
+        # without logging in into the machine?
         cont = False
         while not cont:
             if 'occi.compute.state="active"' in \
