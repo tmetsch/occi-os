@@ -55,7 +55,7 @@ def retrieve_group_by_name(name, context):
     mixin_term -- The term of the mixin representing the group.
     context -- The os context.
     """
-    return SEC_API.list(context, names=[name])[0]
+    return SEC_API.list(context, names=[name], project=context.project_id)[0]
 
 
 def retrieve_groups_by_project(context):
@@ -89,7 +89,8 @@ def remove_rule(rule, context):
     context -- The os context.
     """
     group_id = rule['parent_group_id']
-    SEC_API.remove_rules(context, group_id, rule['id'])
+    security_group = SEC_API.get(context, None, group_id)
+    SEC_API.remove_rules(context, security_group, (rule['id'], ))
 
 
 def retrieve_rule(uid, context):
@@ -99,4 +100,4 @@ def retrieve_rule(uid, context):
     uid -- Id of the rule (entity.attributes['occi.core.id'])
     context -- The os context.
     """
-    SEC_API.get_rule(context, int(uid))
+    return SEC_API.get_rule(context, int(uid))
