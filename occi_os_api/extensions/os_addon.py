@@ -85,4 +85,3 @@ _OS_USER_DATA_ATTRIBUTES = {'org.openstack.compute.user_data': ''}
 OS_USER_DATA_EXT = core_model.Mixin(
     'http://schemas.openstack.org/compute/instance#',
     'user_data', attributes=_OS_USER_DATA_ATTRIBUTES)
-
