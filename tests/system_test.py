@@ -20,6 +20,7 @@ Will test the OS occiosapi against a local running instance.
 
 #pylint: disable=W0102,C0103,R0904
 
+import base64
 import json
 import sys
 import time
@@ -35,6 +36,12 @@ HEADS = {'Content-Type': 'text/occi',
 KEYSTONE_HOST = '127.0.0.1:5000'
 OCCI_HOST = '127.0.0.1:8787'
 
+OS_TPL_TITLE = '"Image: cirros-0.3.1-x86_64-uec"'
+OS_TPL_SCHEMA = 'scheme="http://schemas.openstack.org/template/os#"'
+RES_TPL_SCHEMA = 'scheme="http://schemas.openstack.org/template/resource#"'
+RES_TPL_NANO = ' '.join(['m1-nano;', RES_TPL_SCHEMA])
+RES_TPL_MICRO = ' '.join(['m1-micro;', RES_TPL_SCHEMA])
+
 # Init a simple logger...
 logging.basicConfig(level=logging.DEBUG)
 CONSOLE = logging.StreamHandler()
@@ -47,26 +54,32 @@ def do_request(verb, url, headers):
     """
     Do an HTTP request defined by a HTTP verb, an URN and a dict of headers.
     """
-    conn = httplib.HTTPConnection(OCCI_HOST)
-    conn.request(verb, url, None, headers)
-    response = conn.getresponse()
-    if response.status not in [200, 201]:
-        LOG.error(response.reason)
-        LOG.warn(response.read())
+    try:
+        conn = httplib.HTTPConnection(OCCI_HOST, timeout=100)
+        conn.request(verb, url, None, headers)
+        response = conn.getresponse()
+        if response.status not in [200, 201]:
+            LOG.error(response.reason)
+            LOG.debug("Request: %s\n%s\n%s\n" % (verb, url, headers))
+            LOG.warn(response.read())
+            sys.exit(1)
+
+        heads = response.getheaders()
+        result = {}
+        for item in heads:
+            if item[0] in ['category', 'link', 'x-occi-attribute',
+                           'x-occi-location', 'location']:
+                tmp = []
+                for val in item[1].split(','):
+                    tmp.append(val.strip())
+                result[item[0]] = tmp
+
+        conn.close()
+        return result
+    except httplib.HTTPException as e:
+        LOG.error(e)
+        LOG.debug("Request: %s\n%s\n%s\n" % (verb, url, headers))
         sys.exit(1)
-
-    heads = response.getheaders()
-    result = {}
-    for item in heads:
-        if item[0] in ['category', 'link', 'x-occi-attribute',
-                       'x-occi-location', 'location']:
-            tmp = []
-            for val in item[1].split(','):
-                tmp.append(val.strip())
-            result[item[0]] = tmp
-
-    conn.close()
-    return result
 
 
 def get_os_token(username, password):
@@ -95,7 +108,19 @@ def get_qi_listing(token):
     heads = HEADS.copy()
     heads['X-Auth-Token'] = token
     result = do_request('GET', '/-/', heads)
-    LOG.debug(result['category'])
+    return result
+
+
+def get_os_tpl(token):
+    """
+    Get the os_template to use for creating VMs
+    """
+    qis = get_qi_listing(token)
+    for qi in [q.split(';') for q in qis['category']]:
+        if qi[1].strip() == OS_TPL_SCHEMA:
+            if qi[3].split('=')[-1] == OS_TPL_TITLE:
+                return ";".join((qi[0], qi[1]))
+    return None
 
 
 def create_node(token, category_list, attributes=[]):
@@ -178,20 +203,21 @@ class SystemTest(unittest.TestCase):
         """
         # Get a security token:
         self.token = get_os_token('admin', 'os4all')
-        LOG.info('security token is: ' + self.token)
+        #LOG.info('security token is: ' + self.token)
+        # get the VM category to use
+        self.os_tpl = get_os_tpl(self.token)
+        #LOG.info('OS tpl is: ' + self.os_tpl)
 
     def test_compute_node(self):
         """
         Test ops on a compute node!
         """
         # QI listing
-        get_qi_listing(self.token)
+        LOG.debug(get_qi_listing(self.token)['category'])
 
         # create VM
-        cats = ['m1-nano; scheme="http://schemas.openstack'
-                '.org/template/resource#"',
-                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
-                '.org/template/os#"',
+        cats = [RES_TPL_NANO, 
+                self.os_tpl,
                 'compute; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
         vm_location = create_node(self.token, cats)
@@ -273,10 +299,8 @@ class SystemTest(unittest.TestCase):
         #print do_request('POST', '/mygroups/', heads)
 
         # create new VM
-        cats = ['m1-nano; scheme="http://schemas.openstack'
-                '.org/template/resource#"',
-                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
-                '.org/template/os#"',
+        cats = [RES_TPL_NANO,
+                self.os_tpl,
                 name + '; scheme="http://www.mystuff.org/sec#"',
                 'compute; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
@@ -307,7 +331,10 @@ class SystemTest(unittest.TestCase):
         destroy_node(self.token, float_ip_location)
 
         # change pw
+<<<<<<< HEAD
         # XXX: currently not working as OS libvirt driver does not support it.
+=======
+>>>>>>> e3c3152433b151110c65443451cfe1aab3911334
         #LOG.debug(trigger_action(self.token, vm_location + '?action=chg_pwd',
         #                         'chg_pwd; scheme="http://schemas.'
         #                         'openstack.org/instance/action#"',
@@ -334,10 +361,8 @@ class SystemTest(unittest.TestCase):
         """
 
         # create new VM
-        cats = ['m1-nano; scheme="http://schemas.openstack'
-                '.org/template/resource#"',
-                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
-                '.org/template/os#"',
+        cats = [RES_TPL_NANO,
+                self.os_tpl,
                 'compute; scheme="http://schemas.ogf.org/occi/'
                 'infrastructure#"']
         vm_location = create_node(self.token, cats)
@@ -403,10 +428,8 @@ class SystemTest(unittest.TestCase):
         Test the scaling operations
         """
         # create new VM
-        cats = ['m1-nano; scheme="http://schemas.openstack'
-                '.org/template/resource#"',
-                'cirros-0-3-1-x86_64-uec; scheme="http://schemas.openstack'
-                '.org/template/os#"',
+        cats = [RES_TPL_NANO,
+                self.os_tpl,
                 'compute; scheme="http://schemas.ogf.org/occi/'
                 'infrastructure#"']
         vm_location = create_node(self.token, cats)
@@ -423,11 +446,38 @@ class SystemTest(unittest.TestCase):
         # scale up VM - see #17
         heads = HEADS.copy()
         heads['X-Auth-Token'] = self.token
-        heads['Category'] = 'm1-micro; scheme="http://schemas.openstack' \
-                            '.org/template/resource#"'
+        heads['Category'] = RES_TPL_MICRO
         do_request('POST', vm_location, heads)
 
         # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="active"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
+        destroy_node(self.token, vm_location)
+
+    def test_userdata(self):
+        """
+        Test passing userdata to the VM
+        """
+        user_data = base64.b64encode("1, 2, 3 this is a test")
+        # create new VM
+        cats = [RES_TPL_NANO,
+                self.os_tpl,
+                'user_data; '
+                'scheme="http://schemas.openstack.org/compute/instance#"; ',
+                'compute; scheme="http://schemas.ogf.org/occi/'
+                'infrastructure#"']
+        attrs = ['org.openstack.compute.user_data="%s"' % user_data] 
+        vm_location = create_node(self.token, cats, attrs)
+
+        # XXX
+        # is there any way to test that the data is there
+        # without logging in into the machine?
         cont = False
         while not cont:
             if 'occi.compute.state="active"' in \

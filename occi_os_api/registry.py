@@ -23,7 +23,10 @@ OCCI registry
 #R0201:method could be func.E1002:old style obj,R0914-R0912:# of branches
 #E1121:# positional args.
 #pylint: disable=R0201,E1002,R0914,R0912,E1121
+<<<<<<< HEAD
 
+=======
+>>>>>>> e3c3152433b151110c65443451cfe1aab3911334
 import uuid
 
 from oslo.config import cfg

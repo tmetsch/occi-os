@@ -31,8 +31,8 @@ vulture occi_os_api
 
 echo '\n Pychecker report  \n****************************************\n'
 
-pychecker -# 99 occi_os_api/*.py occi_os_api/backends/*.py
-occi_os_api/nova_glue/*.py occi_os_api/extensions/*.py
+pychecker -# 99 occi_os_api/*.py occi_os_api/backends/*.py \
+                occi_os_api/nova_glue/*.py occi_os_api/extensions/*.py
 
 # TODO: create project!
 #epydoc epydoc.prj
