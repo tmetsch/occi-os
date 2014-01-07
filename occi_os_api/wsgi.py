@@ -171,8 +171,8 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         occi_lst = [item.term for item in self.registry.get_categories(
             extras) if item.scheme == template_schema]
         for item in list(set(occi_lst) - set(os_lst)):
-            self.registry.delete_mixin(os_mixins.OsTemplate(item,
-                                                            template_schema),
+            self.registry.delete_mixin(os_mixins.OsTemplate(template_schema,
+                                                            item),
                                        extras)
 
         for img in images:
@@ -208,12 +208,12 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         os_flavours = vm.retrieve_flavors()
 
         # delete those which are delete through different API.
-        os_lst = [occify_terms(item) for item in os_flavours.keys()]
+        os_lst = [occify_terms(str(item)) for item in os_flavours.keys()]
         occi_lst = [item.term for item in self.registry.get_categories(
             extras) if item.scheme == template_schema]
         for item in list(set(occi_lst) - set(os_lst)):
-            self.registry.delete_mixin(os_mixins.ResourceTemplate(item,
-                                                              template_schema),
+            self.registry.delete_mixin(os_mixins.ResourceTemplate(template_schema,
+                                                                  item),
                                        extras)
 
         for itype in os_flavours.values():

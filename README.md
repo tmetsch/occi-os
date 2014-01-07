@@ -1,6 +1,8 @@
 OCCI for OpenStack
 ==================
 
+***NOTE: This project will be moving to [stackforge](https://github.com/stackforge/occi-os) by the end of this year***
+
 This is a clone and continuation of https://github.com/dizz/nova - it
 provides a python egg which can be easily deployed in [OpenStack](http://www
 .openstack.org) and will thereby add the 3rd party [OCCI](http://www.occi-wg

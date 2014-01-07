@@ -171,7 +171,8 @@ def resize_vm(uid, flavor_id, context):
                            **kwargs)
         ready = False
         i = 0
-        while not ready or i < 15:
+        # XXX are 15 secs enough to resize?
+        while not ready and i < 15:
             i += 1
             state = get_vm(uid, context)['vm_state']
             if state == 'resized':
@@ -181,7 +182,7 @@ def resize_vm(uid, flavor_id, context):
         instance = get_vm(uid, context)
         COMPUTE_API.confirm_resize(context, instance)
     except Exception as e:
-        raise AttributeError(e.message)
+        raise AttributeError(str(e))
 
 
 def delete_vm(uid, context):
@@ -282,7 +283,7 @@ def restart_vm(uid, method, context):
 
     if method in ('graceful', 'warm'):
         reboot_type = 'SOFT'
-    elif method is 'cold':
+    elif method == 'cold':
         reboot_type = 'HARD'
     else:
         raise AttributeError('Unknown method.')
@@ -303,8 +304,6 @@ def attach_volume(instance_id, volume_id, mount_point, context):
     """
     instance = get_vm(instance_id, context)
     try:
-        vol_instance = COMPUTE_API.volume_api.get(context, volume_id)
-        volume_id = vol_instance['id']
         COMPUTE_API.attach_volume(
             context,
             instance,
@@ -314,16 +313,19 @@ def attach_volume(instance_id, volume_id, mount_point, context):
         raise AttributeError(e.message)
 
 
-def detach_volume(volume_id, context):
+def detach_volume(instance_id, volume, context):
     """
     Detach a storage volume.
 
-    volume_id -- Id of the volume.
+    volume -- Volume description.
+    instance_id -- Id of the VM.
     context -- the os context.
     """
     try:
-        COMPUTE_API.detach_volume(context, volume_id)
+        instance = get_vm(instance_id, context)
+        COMPUTE_API.detach_volume(context, instance, volume)
     except Exception as e:
+        print e
         raise AttributeError(e)
 
 
@@ -344,7 +346,7 @@ def set_password_for_vm(uid, password, context):
 
 def get_vnc(uid, context):
     """
-    Retrieve VNC console or None is unavailable.
+    Retrieve VNC console or None if unavailable.
 
     uid -- id of the instance
     context -- the os context
@@ -367,7 +369,7 @@ def get_vm(uid, context):
     context -- the os context
     """
     try:
-        instance = COMPUTE_API.get(context, uid)
+        instance = COMPUTE_API.get(context, uid, want_objects=True)
     except Exception:
         raise exceptions.HTTPError(404, 'VM not found!')
     return instance
@@ -425,7 +427,6 @@ def get_vm_state(uid, context):
 # Image management
 
 
-
 def retrieve_image(uid, context):
     """
     Return details on an image.
@@ -444,4 +445,7 @@ def retrieve_images(context):
 
 
 def retrieve_flavors():
+    """
+    Retrieve list of flavors.
+    """
     return flavors.get_all_flavors()

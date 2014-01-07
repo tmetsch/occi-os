@@ -162,5 +162,8 @@ class StorageLinkBackend(backend.KindBackend):
         """
         Unlinks the the compute from the storage resource.
         """
+        instance_id = link.source.attributes['occi.core.id']
         volume_id = link.target.attributes['occi.core.id']
-        vm.detach_volume(volume_id, extras['nova_ctx'])
+
+        volume = storage.get_storage(volume_id, extras['nova_ctx'])
+        vm.detach_volume(instance_id, volume, extras['nova_ctx'])
