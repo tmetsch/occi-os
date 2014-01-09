@@ -20,8 +20,6 @@
 Storage related glue :-)
 """
 
-import random
-
 from nova import compute
 
 from occi import exceptions
@@ -29,14 +27,13 @@ from occi import exceptions
 VOLUME_API = compute.API().volume_api
 
 
-def create_storage(size, context, name=None, description=None):
+def create_storage(size, name, context):
     """
     Create a storage instance.
 
-    size -- Size of the storage. ('occi.storage.size')
+    size -- Size of the storage.
+    name -- Name of the storage volume.
     context -- The os context.
-    name -- defaults to a random number if needed.
-    description -- defaults to the name
     """
     # L8R: A blueprint?
     # OpenStack deals with size in terms of integer.
@@ -48,21 +45,11 @@ def create_storage(size, context, name=None, description=None):
                              ' floats.')
     size = int(float(size))
 
-    disp_name = ''
-    if name is not None:
-        disp_name = name
-    else:
-        disp_name = str(random.randrange(0, 99999999)) + '-storage.occi-wg.org'
-    if description is not None:
-        disp_descr = description
-    else:
-        disp_descr = disp_name
-
     try:
         return VOLUME_API.create(context,
                                  size,
-                                 disp_name,
-                                 disp_descr)
+                                 name,
+                                 name)
     except Exception as e:
         raise AttributeError(e.message)
 

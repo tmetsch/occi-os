@@ -367,7 +367,7 @@ class SystemTest(unittest.TestCase):
         # create volume
         cats = ['storage; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
-        attrs = ['occi.storage.size = 1.0']
+        attrs = ['occi.storage.size = 1.0', 'occi.core.title = foobar']
         vol_location = create_node(self.token, cats, attrs)
 
         time.sleep(25)

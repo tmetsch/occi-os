@@ -325,7 +325,6 @@ def detach_volume(instance_id, volume, context):
         instance = get_vm(instance_id, context)
         COMPUTE_API.detach_volume(context, instance, volume)
     except Exception as e:
-        print e
         raise AttributeError(e)
 
 
