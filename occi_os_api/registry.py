@@ -34,6 +34,7 @@ from occi_os_api.extensions import os_addon
 from occi_os_api.nova_glue import vm
 from occi_os_api.nova_glue import storage
 from occi_os_api.nova_glue import net
+from occi_os_api.nova_glue import neutron
 
 from occi import registry as occi_registry
 from occi import core_model
@@ -47,20 +48,13 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
     Registry for OpenStack.
 
     Idea is the following: Create the OCCI entities (Resource and their
-    links) here and let the backends handle actions, attributes etc.
+    links) here and let the backends handle actions, updates the attributes
+    etc.
     """
 
     def __init__(self):
         super(OCCIRegistry, self).__init__()
         self.cache = {}
-        self.adm_net = core_model.Resource('/network/admin',
-                                           infrastructure.NETWORK,
-                                           [infrastructure.IPNETWORK])
-        self.pub_net = core_model.Resource('/network/public',
-                                           infrastructure.NETWORK,
-                                           [infrastructure.IPNETWORK])
-
-        self._setup_network()
 
     def set_hostname(self, hostname):
         if CONF.occi_custom_location_hostname:
@@ -138,14 +132,24 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
 
         vms = vm.get_vms(context)
         vm_res_ids = [item['uuid'] for item in vms]
+
         stors = storage.get_storage_volumes(context)
         stor_res_ids = [item['id'] for item in stors]
+
+        nets = neutron.list_networks(context)
+        net_ids = [item['id'] for item in nets]
 
         if (key, context.user_id) in self.cache:
             # I have seen it - need to update or delete if gone in OS!
             # I have already seen it
             cached_item = self.cache[(key, context.user_id)]
-            if not iden in vm_res_ids and cached_item.kind == \
+            if iden not in net_ids and cached_item.kind == \
+                    infrastructure.NETWORK:
+                # it was delete in OS -> remove from cache + KeyError!
+                # can delete it because it was my item!
+                self.cache.pop((key, repr(extras)))
+                raise KeyError
+            if iden not in vm_res_ids and cached_item.kind == \
                     infrastructure.COMPUTE:
                 # it was delete in OS -> remove links, cache + KeyError!
                 # can delete it because it was my item!
@@ -153,12 +157,15 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                     self.cache.pop((link.identifier, repr(extras)))
                 self.cache.pop((key, repr(extras)))
                 raise KeyError
-            if not iden in stor_res_ids and cached_item.kind == \
+            if iden not in stor_res_ids and cached_item.kind == \
                     infrastructure.STORAGE:
                 # it was delete in OS -> remove from cache + KeyError!
                 # can delete it because it was my item!
                 self.cache.pop((key, repr(extras)))
                 raise KeyError
+            elif iden in net_ids:
+                # it also exists in OS -> update it!
+                result = self._update_occi_network(cached_item, extras)
             elif iden in vm_res_ids:
                 # it also exists in OS -> update it (take links, mixins
                 # from cached one)
@@ -174,7 +181,10 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
             return self.cache[(key, None)]
         else:
             # construct it.
-            if iden in vm_res_ids:
+            if iden in net_ids:
+                # create new & add to cache!
+                result = self._construct_occi_network(iden, extras)[0]
+            elif iden in vm_res_ids:
                 # create new & add to cache!
                 result = self._construct_occi_compute(iden, extras)[0]
             elif iden in stor_res_ids:
@@ -219,6 +229,9 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         stors = storage.get_storage_volumes(context)
         stor_res_ids = [item['id'] for item in stors]
 
+        nets = neutron.list_networks(context)
+        net_ids = [item['id'] for item in nets]
+
         for item in self.cache.values():
             if item.extras is not None and item.extras['user_id'] != \
                     context.user_id:
@@ -227,6 +240,12 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
             item_id = item.identifier[item.identifier.rfind('/') + 1:]
             if item.extras is None:
                 # add to result set
+                result.append(item)
+            elif item_id in net_ids and item.kind == \
+                    infrastructure.NETWORK:
+                # check & update (take links, mixins from cache)
+                # add compute and it's links to result
+                self._update_occi_network(item, extras)
                 result.append(item)
             elif item_id in vm_res_ids and item.kind == \
                     infrastructure.COMPUTE:
@@ -241,6 +260,12 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                 # add compute and it's links to result
                 self._update_occi_storage(item, extras)
                 result.append(item)
+            elif item_id not in net_ids and item.kind == \
+                    infrastructure.NETWORK:
+                # remove item and it's links from cache!
+                for link in item.links:
+                    self.cache.pop((link.identifier, item.extras['user_id']))
+                self.cache.pop((item.identifier, item.extras['user_id']))
             elif item_id not in vm_res_ids and item.kind == \
                     infrastructure.COMPUTE:
                 # remove item and it's links from cache!
@@ -251,6 +276,14 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                     infrastructure.STORAGE:
                 # remove item
                 self.cache.pop((item.identifier, item.extras['user_id']))
+        for item in nets:
+            if (infrastructure.NETWORK.location + item['id'],
+                    context.user_id) in self.cache:
+                continue
+            else:
+                # construct (with links and mixins and add to cache!
+                ent_list = self._construct_occi_network(item['id'], extras)
+                result.extend(ent_list)
         for item in vms:
             if (infrastructure.COMPUTE.location + item['uuid'],
                     context.user_id) in self.cache:
@@ -269,7 +302,6 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                 # add compute and it's linke to result
                 ent_list = self._construct_occi_storage(item['id'], extras)
                 result.extend(ent_list)
-
         return result
 
     # Not part of parent
@@ -278,8 +310,6 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         """
         Update an occi compute resource instance.
         """
-        # TODO: implement update of mixins and links (remove old mixins and
-        # links)!
         return entity
 
     def _construct_occi_compute(self, identifier, extras):
@@ -315,14 +345,19 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
 
         # 3. network links & get links from cache!
         net_links = net.get_network_details(identifier, context)
-        for item in net_links['public']:
-            link = self._construct_network_link(item, entity, self.pub_net,
-                                                extras)
+
+        for item in net_links:
+            source = self.get_resource(infrastructure.NETWORK.location +
+                                       str(item['net_id']), extras)
+            link = core_model.Link(infrastructure.NETWORKINTERFACE.location +
+                                   str(item['vif']),
+                                   infrastructure.NETWORKINTERFACE, [], source,
+                                   entity)
+            link.attributes['occi.core.id'] = str(item['vif'])
+            link.extras = self.get_extras(extras)
+            source.links.append(link)
             result.append(link)
-        for item in net_links['admin']:
-            link = self._construct_network_link(item, entity, self.adm_net,
-                                                extras)
-            result.append(link)
+            self.cache[(link.identifier, context.user_id)] = link
 
         # core.id and cache it!
         entity.attributes['occi.core.id'] = identifier
@@ -356,12 +391,14 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
 
         # create links on VM resources
         if stor['status'] == 'in-use':
+            iden = str(uuid.uuid4())
             source = self.get_resource(infrastructure.COMPUTE.location +
                                        str(stor['instance_uuid']), extras)
             link = core_model.Link(infrastructure.STORAGELINK.location +
-                                   str(uuid.uuid4()),
+                                   iden,
                                    infrastructure.STORAGELINK, [], source,
                                    entity)
+            link.attributes['occi.core.id'] = iden
             link.extras = self.get_extras(extras)
             source.links.append(link)
             result.append(link)
@@ -374,51 +411,30 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
 
         return result
 
-    def _setup_network(self):
+    def _update_occi_network(self, entity, extras):
         """
-        Add a public and an admin network interface.
+        Update a network resource.
         """
-        # TODO: read from openstack!
-        self.pub_net.attributes = {'occi.network.vlan': 'external',
-                                   'occi.network.label': 'default',
-                                   'occi.network.state': 'active',
-                                   'occi.networkinterface.address': '192'
-                                                                    '.168'
-                                                                    '.0.0/24',
-                                   'occi.networkinterface.gateway': '192.168'
-                                                                    '.0.1',
-                                   'occi.networkinterface.allocation':
-                                   'static'}
-        self.adm_net.attributes = {'occi.network.vlan': 'admin',
-                                   'occi.network.label': 'default',
-                                   'occi.network.state': 'active',
-                                   'occi.networkinterface.address': '10.0.0'
-                                                                    '.0/24',
-                                   'occi.networkinterface.gateway': '10.0.0'
-                                                                    '.1',
-                                   'occi.networkinterface.allocation':
-                                   'static'}
-        self.cache[(self.adm_net.identifier, None)] = self.adm_net
-        self.cache[(self.pub_net.identifier, None)] = self.pub_net
+        return entity
 
-    def _construct_network_link(self, net_desc, source, target, extras):
+    def _construct_occi_network(self, identifier, extras):
         """
-        Construct a network link and add to cache!
+        Create a network resource.
         """
-        link = core_model.Link(infrastructure.NETWORKINTERFACE.location +
-                               str(uuid.uuid4()),
-                               infrastructure.NETWORKINTERFACE,
-                               [infrastructure.IPNETWORKINTERFACE], source,
-                               target)
-        link.attributes = {
-            'occi.networkinterface.interface': net_desc['interface'],
-            'occi.networkinterface.mac': net_desc['mac'],
-            'occi.networkinterface.state': net_desc['state'],
-            'occi.networkinterface.address': net_desc['address'],
-            'occi.networkinterface.gateway': net_desc['gateway'],
-            'occi.networkinterface.allocation': net_desc['allocation']
-        }
-        link.extras = self.get_extras(extras)
-        source.links.append(link)
-        self.cache[(link.identifier, extras['nova_ctx'].user_id)] = link
-        return link
+        result = []
+        context = extras['nova_ctx']
+
+        net = neutron.retrieve_network(context, identifier)
+        mixins = []
+        if len(net['subnets']) > 0:
+            mixins = [infrastructure.IPNETWORK]
+
+        iden = infrastructure.NETWORK.location + identifier
+        entity = core_model.Resource(iden, infrastructure.NETWORK, mixins)
+        entity.attributes['occi.core.id'] = identifier
+        entity.extras = self.get_extras(extras)
+        self.cache[(entity.identifier, context.user_id)] = entity
+        result.append(entity)
+
+        # TODO: deal with routers!
+        return result

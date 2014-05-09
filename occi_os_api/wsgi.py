@@ -212,9 +212,8 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         occi_lst = [item.term for item in self.registry.get_categories(
             extras) if item.scheme == template_schema]
         for item in list(set(occi_lst) - set(os_lst)):
-            self.registry.delete_mixin(os_mixins.ResourceTemplate(template_schema,
-                                                                  item),
-                                       extras)
+            self.registry.delete_mixin(os_mixins.ResourceTemplate(
+                template_schema, item), extras)
 
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])

@@ -26,9 +26,9 @@ from setuptools import setup
 
 
 setup(
-    name='openstackocci-havana',
+    name='openstackocci-icehouse',
     version='1.0',
-    description='OCCI interface for Openstack (stable/havana).',
+    description='OCCI interface for Openstack (stable/icehouse).',
     long_description='''
          This is a clone of https://github.com/dizz/nova - it provides a
          python egg which can be deployed in OpenStack and will thereby add the
@@ -37,7 +37,7 @@ setup(
     classifiers=[
         'Programming Language :: Python',
         'Development Status :: 5 - Production/Stable',
-        'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
+        'Topic :: Internet :: WWW/HTTP :: WSGI :: Application'
         ],
     keywords='',
     author='Intel Performance Learning Solutions Ltd.',
@@ -45,11 +45,11 @@ setup(
     url='http://intel.com',
     license='Apache License, Version 2.0',
     include_package_data=True,
-    packages=['occi_os_api','occi_os_api.backends','occi_os_api.extensions',
+    packages=['occi_os_api', 'occi_os_api.backends', 'occi_os_api.extensions',
               'occi_os_api.nova_glue'],
     zip_safe=False,
     install_requires=[
-        'setuptools', 'nova'
+        'setuptools', 'nova', 'python-neutronclient'
         ],
     entry_points='''
       [paste.app_factory]

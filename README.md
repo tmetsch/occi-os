@@ -41,7 +41,7 @@ picked yourself):
 	# pipeline = sizelimit authtoken keystonecontext ratelimit occiapp
 
 	[app:occiapp]
-	use = egg:openstackocci-havana#occi_app
+	use = egg:openstackocci-icehouse#occi_app
 
 Make sure the API (name from above) is enabled in `nova.conf`:
 

@@ -36,7 +36,7 @@ HEADS = {'Content-Type': 'text/occi',
 KEYSTONE_HOST = '127.0.0.1:5000'
 OCCI_HOST = '127.0.0.1:8787'
 
-OS_TPL_TITLE = '"Image: cirros-0.3.1-x86_64-uec"'
+OS_TPL_TITLE = '"Image: cirros-0.3.1-x86_64-disk"'
 OS_TPL_SCHEMA = 'scheme="http://schemas.openstack.org/template/os#"'
 RES_TPL_SCHEMA = 'scheme="http://schemas.openstack.org/template/resource#"'
 RES_TPL_NANO = ' '.join(['m1-nano;', RES_TPL_SCHEMA])
@@ -60,7 +60,7 @@ def do_request(verb, url, headers):
         response = conn.getresponse()
         if response.status not in [200, 201]:
             LOG.error(response.reason)
-            LOG.debug("Request: %s\n%s\n%s\n" % (verb, url, headers))
+            LOG.info("Request: %s\n%s\n%s\n" % (verb, url, headers))
             LOG.warn(response.read())
             sys.exit(1)
 
@@ -315,21 +315,6 @@ class SystemTest(unittest.TestCase):
             else:
                 time.sleep(5)
 
-        # allocate floating IP
-        cats = ['networkinterface; scheme="http://schemas.ogf'
-                '.org/occi/infrastructure#"', 'ipnetworkinterface; '
-                                              'scheme="http://schemas.ogf'
-                '.org/occi/infrastructure/networkinterface#"']
-        attrs = ['occi.core.source=http://"' + OCCI_HOST + vm_location + '"',
-                 'occi.core.target=http://"' + OCCI_HOST +
-                 '/network/public"']
-        float_ip_location = create_node(self.token, cats, attrs)
-
-        time.sleep(15)
-
-        # Deallocate Floating IP to VM
-        destroy_node(self.token, float_ip_location)
-
         # change pw
         # XXX: currently not working as OS libvirt driver does not support it.
         #LOG.debug(trigger_action(self.token, vm_location + '?action=chg_pwd',
@@ -472,7 +457,7 @@ class SystemTest(unittest.TestCase):
         attrs = ['org.openstack.compute.user_data="%s"' % user_data]
         vm_location = create_node(self.token, cats, attrs)
 
-        # XXX
+        # XXX:
         # is there any way to test that the data is there
         # without logging in into the machine?
         cont = False
@@ -484,3 +469,57 @@ class SystemTest(unittest.TestCase):
                 time.sleep(5)
 
         destroy_node(self.token, vm_location)
+
+    def test_neutron_network(self):
+        """
+        Test neutron based networking.
+        """
+        # create network.
+        cats = ['network; '
+                'scheme="http://schemas.ogf.org/occi/infrastructure#";',
+                'ipnetwork; '
+                'scheme="http://schemas.ogf.org/occi/infrastructure/network#"']
+        net_loc = create_node(self.token, cats, {})
+
+        # retrieve network
+        tmp = get_node(self.token, net_loc)
+        # sanity checks.
+        keys = [item.split('=')[0] for item in tmp['x-occi-attribute']]
+        self.assertIn('occi.network.label', keys)
+        self.assertIn('occi.network.state', keys)
+        self.assertIn('occi.network.vlan', keys)
+        self.assertIn('occi.network.address', keys)
+        self.assertIn('occi.network.gateway', keys)
+        self.assertIn('occi.network.allocation', keys)
+
+        # list all networks - with devstack should be 3 now
+        self.assertTrue(len(list_nodes(self.token, '/network/')) == 3)
+
+        # remove ipnetwork mixin
+        heads = HEADS.copy()
+        heads['X-Auth-Token'] = self.token
+        heads['x-occi-Location'] = net_loc
+        do_request('DELETE', '/ipnetwork/', heads)
+
+        # retrieve network
+        tmp = get_node(self.token, net_loc)
+        # should only contain core.id + for basic network attr.
+        self.assertTrue(len(tmp['x-occi-attribute']) == 4)
+
+        # delete network
+        destroy_node(self.token, net_loc)
+
+        # TODO: test allocate floating IP
+        # cats = ['networkinterface; scheme="http://schemas.ogf'
+        #         '.org/occi/infrastructure#"', 'ipnetworkinterface; '
+        #                                       'scheme="http://schemas.ogf'
+        #         '.org/occi/infrastructure/networkinterface#"']
+        # attrs = ['occi.core.source=http://"' + OCCI_HOST + vm_location + '"',
+        #          'occi.core.target=http://"' + OCCI_HOST +
+        #          '/network/public"']
+        # float_ip_location = create_node(self.token, cats, attrs)
+        #
+        # time.sleep(15)
+        #
+        # # Deallocate Floating IP to VM
+        # destroy_node(self.token, float_ip_location)

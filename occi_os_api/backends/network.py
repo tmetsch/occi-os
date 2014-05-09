@@ -26,8 +26,8 @@ Network resource backend.
 
 
 from occi import backend
-from occi_os_api.extensions import os_addon
-from occi_os_api.nova_glue import net
+from occi.extensions import infrastructure
+from occi_os_api.nova_glue import neutron
 
 
 class NetworkBackend(backend.KindBackend, backend.ActionBackend):
@@ -37,14 +37,44 @@ class NetworkBackend(backend.KindBackend, backend.ActionBackend):
 
     def create(self, entity, extras):
         """
-        Currently unsupported.
+        Creates new network resources.
+        """
+        ctx = extras['nova_ctx']
+        iden = neutron.create_network(ctx)
+
+        entity.identifier = infrastructure.NETWORK.location + iden
+        entity.attributes['occi.core.id'] = iden
+
+    def retrieve(self, entity, extras):
+        ctx = extras['nova_ctx']
+        iden = entity.attributes['occi.core.id']
+        tmp = neutron.retrieve_network(ctx, iden)
+
+        entity.attributes = {'occi.core.id': iden,
+                             'occi.network.vlan': '1',
+                             'occi.network.label': tmp['name'],
+                             'occi.network.state': 'active'}
+
+    def update(self, old, new, extras):
+        """
+        Not supported for now.
         """
         raise AttributeError('Currently not supported.')
+
+    def delete(self, entity, extras):
+        """
+        Delete a network.
+        """
+        ctx = extras['nova_ctx']
+        iden = entity.attributes['occi.core.id']
+
+        neutron.delete_network(ctx, iden)
 
     def action(self, entity, action, attributes, extras):
         """
         Currently unsupported.
         """
+        # TODO: UP/DOWN actions
         raise AttributeError('Currently not supported.')
 
 
@@ -55,9 +85,63 @@ class IpNetworkBackend(backend.MixinBackend):
 
     def create(self, entity, extras):
         """
-        Currently unsupported.
+        Add l3 support to the network.
+        """
+        ctx = extras['nova_ctx']
+        iden = entity.attributes['occi.core.id']
+
+        if 'occi.network.address' in entity.attributes:
+            cidr = entity.attributes['occi.network.address']
+        else:
+            cidr = '10.0.0.1/24'
+
+        if 'occi.network.gateway' in entity.attributes:
+            gw = entity.attributes['occi.network.gateway']
+        else:
+            gw = cidr.split('/')[0]
+
+        if 'occi.network.allocation' in entity.attributes:
+            if entity.attributes['occi.network.allocation'] == 'static':
+                dyn = False
+        else:
+            dyn = True
+
+        neutron.create_subnet(ctx, iden, cidr, gw, dynamic=dyn)
+
+    def retrieve(self, entity, extras):
+        """
+        Retrieve a network.
+        """
+        ctx = extras['nova_ctx']
+        iden = entity.attributes['occi.core.id']
+
+        tmp = neutron.retrieve_network(ctx, iden)
+        subnet_id = tmp['subnets'][0]
+        tmp = neutron.retrieve_subnet(ctx, subnet_id)['subnet']
+
+        entity.attributes['occi.network.address'] = tmp['cidr']
+        entity.attributes['occi.network.gateway'] = tmp['gateway_ip']
+        if tmp['enable_dhcp'] is True:
+            entity.attributes['occi.network.allocation'] = 'dynamic'
+        else:
+            entity.attributes['occi.network.allocation'] = 'static'
+
+    def update(self, old, new, extras):
+        """
+        Not supported for now.
         """
         raise AttributeError('Currently not supported.')
+
+    def delete(self, entity, extras):
+        """
+        Remove L3.
+        """
+        ctx = extras['nova_ctx']
+        iden = entity.attributes['occi.core.id']
+
+        tmp = neutron.retrieve_network(ctx, iden)
+        subnet_id = tmp['subnets'][0]
+        neutron.delete_subnet(ctx, subnet_id)
 
 
 class IpNetworkInterfaceBackend(backend.MixinBackend):
@@ -76,31 +160,18 @@ class NetworkInterfaceBackend(backend.KindBackend):
 
     def create(self, link, extras):
         """
-        As nova does not support creation of L2 networks we don't.
+        create links between:
+        a) between networks -> router
+        b) between VM and network -> assignment
+        c) floating ips.
         """
-        if link.target.identifier == '/network/public':
-            # public means floating IP in OS!
-            # if the os_net_link mixin is avail. a pool must be provided:
-            if not 'org.openstack.network.floating.pool' in link.attributes\
-                    and os_addon.OS_NET_LINK in link.mixins:
-                raise AttributeError('Please specify the pool name when using'
-                                     ' this mixin!')
-            elif os_addon.OS_NET_LINK in link.mixins:
-                pool = link.attributes['org.openstack.network.floating.pool']
-            else:
-                pool = None
-            address = net.add_floating_ip(link.source.attributes['occi.'
-                                                                 'core.id'],
-                                          pool,
-                                          extras['nova_ctx'])
-            link.attributes['occi.networkinterface.interface'] = 'eth0'
-            link.attributes['occi.networkinterface.mac'] = 'aa:bb:cc:dd:ee:ff'
-            link.attributes['occi.networkinterface.state'] = 'active'
-            link.attributes['occi.networkinterface.address'] = address
-            link.attributes['occi.networkinterface.gateway'] = '0.0.0.0'
-            link.attributes['occi.networkinterface.allocation'] = 'static'
-        else:
-            raise AttributeError('Currently not supported.')
+        pass
+
+    def retrieve(self, entity, extras):
+        """
+        Update the attributes of the links.
+        """
+        pass
 
     def update(self, old, new, extras):
         """
@@ -112,9 +183,4 @@ class NetworkInterfaceBackend(backend.KindBackend):
         """
         Remove a floating ip!
         """
-        if link.target.identifier == '/network/public':
-            # public means floating IP in OS!
-            net.remove_floating_ip(link.source.attributes['occi.core.id'],
-                                   link.attributes['occi.networkinterface.'
-                                                   'address'],
-                                   extras['nova_ctx'])
+        pass

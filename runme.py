@@ -32,7 +32,6 @@ if os.path.exists(os.path.join(TOPDIR, "nova", "__init__.py")):
 from nova import config
 from nova import service
 from nova import utils
-from nova.openstack.common import log as logging
 
 
 if __name__ == '__main__':
@@ -41,4 +40,3 @@ if __name__ == '__main__':
     SERVER = service.WSGIService('occiapi')
     service.serve(SERVER)
     service.wait()
-

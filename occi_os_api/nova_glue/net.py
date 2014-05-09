@@ -17,7 +17,7 @@
 #    under the License.
 
 """
-Network related 'glue' :-)
+Nova Network related 'glue' :-)
 """
 
 import logging
@@ -42,34 +42,10 @@ def get_network_details(uid, context):
     context -- The os context.
     """
     vm_instance = vm.get_vm(uid, context)
+    result = []
 
-    result = {'public': [], 'admin': []}
-    try:
-        net_info = NETWORK_API.get_instance_nw_info(context, vm_instance)[0]
-    except IndexError:
-        LOG.warn('Unable to retrieve network information - this is because '
-                 'of OpenStack!!')
-        return result
-    gw = net_info['network']['subnets'][0]['gateway']['address']
-    mac = net_info['address']
-
-    if len(net_info['network']['subnets'][0]['ips']) == 0:
-        tmp = {'floating_ips': [], 'address': '0.0.0.0'}
-    else:
-        tmp = net_info['network']['subnets'][0]['ips'][0]
-    for item in tmp['floating_ips']:
-        result['public'].append({'interface': 'eth0',
-                                 'mac': 'aa:bb:cc:dd:ee:ff',
-                                 'state': 'active',
-                                 'address': item['address'],
-                                 'gateway': '0.0.0.0',
-                                 'allocation': 'static'})
-    result['admin'].append({'interface': 'eth0',
-                            'mac': mac,
-                            'state': 'active',
-                            'address': tmp['address'],
-                            'gateway': gw,
-                            'allocation': 'static'})
+    for item in NETWORK_API.get_instance_nw_info(context, vm_instance):
+        result.append({'vif': item['id'], 'net_id': item['network']['id']})
 
     return result
 
