@@ -263,6 +263,34 @@ class SystemTest(unittest.TestCase):
             else:
                 time.sleep(5)
 
+        # trigger suspend
+        trigger_action(self.token, vm_location + '?action=suspend',
+                       'suspend; scheme="http://schemas.ogf.org/occi/'
+                       'infrastructure/compute/action#"')
+
+        # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="inactive"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
+        # trigger start
+        trigger_action(self.token, vm_location + '?action=start',
+                       'start; scheme="http://schemas.ogf.org/occi/'
+                       'infrastructure/compute/action#"')
+
+        # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="active"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
         # delete
         destroy_node(self.token, vm_location)
 
