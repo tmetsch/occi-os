@@ -244,7 +244,18 @@ def start_vm(uid, context):
     """
     instance = get_vm(uid, context)
     try:
-        COMPUTE_API.resume(context, instance)
+        if instance['vm_state'] in [vm_states.PAUSED]:
+            COMPUTE_API.unpause(context, instance)
+        elif instance['vm_state'] in [vm_states.SUSPENDED]:
+            COMPUTE_API.resume(context, instance)
+        # the following will probably not happen, as COMPUTE_API.stop()
+        # is never called.
+        elif instance['vm_state'] in [vm_states.STOPPED]:
+            COMPUTE_API.start(context, instance)
+        else:
+            raise exceptions.HTTPError(500, "Unable to map start to appropriate OS action.")
+    except exceptions.HTTPError as e:
+        raise e
     except Exception as e:
         raise AttributeError(e.message)
 
