@@ -137,3 +137,76 @@ def delete_subnet(context, iden):
         return neutron.delete_subnet(iden)
     except Exception as err:
         raise AttributeError(err)
+
+
+def create_router(context, source_id, target_id):
+    """
+    Create a router.
+    """
+    tokn = context.auth_token
+
+    try:
+        # TODO: check if we can do this for all!
+        neutron = client.Client('2.0', endpoint_url=URI, token=tokn)
+
+        router = neutron.create_router({'router': {'name': 'occirouter'}})
+        subnet = neutron.list_subnets(network_id = source_id)['subnets'][0]
+
+        neutron.add_interface_router(router['router']['id'],
+                                     {'subnet_id': subnet['id']})
+        neutron.add_gateway_router(router['router']['id'],
+                                   {'network_id': target_id})
+
+        return router
+    except Exception as err:
+        raise AttributeError(err)
+
+
+def delete_router(context, router_id, network_id):
+    """
+    Remove a router.
+    """
+    tokn = context.auth_token
+
+    try:
+        neutron = client.Client('2.0', endpoint_url=URI, token=tokn)
+        neutron.remove_gateway_router(router_id)
+        subnet = neutron.list_subnets(network_id = network_id)['subnets'][0]
+        neutron.remove_interface_router(router_id, { 'subnet_id' : subnet['id'] })
+        neutron.delete_router(router_id)
+    except Exception as err:
+        raise AttributeError(err)
+
+
+def add_floating_ip(context, iden, network_id):
+    """
+    Add a floating ip.
+    """
+    tokn = context.auth_token
+
+    try:
+        neutron = client.Client('2.0', endpoint_url=URI, token=tokn)
+        tmp = neutron.list_ports(device_id=iden)['ports']
+
+        if len(tmp) == 0:
+            return None
+        else:
+            body = {'floatingip': {'floating_network_id': network_id,
+                                   'port_id': tmp[0]['id']}}
+            float = neutron.create_floatingip(body)
+        return float
+    except Exception as err:
+        raise AttributeError(err)
+
+
+def remove_floating_ip(context, iden):
+    """
+    Remove a floating ip.
+    """
+    tokn = context.auth_token
+
+    try:
+        neutron = client.Client('2.0', endpoint_url=URI, token=tokn)
+        neutron.delete_floatingip(iden)
+    except Exception as err:
+        raise AttributeError(err)

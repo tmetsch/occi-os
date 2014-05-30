@@ -33,6 +33,9 @@ from nova import config
 from nova import service
 from nova import utils
 
+import logging
+logging.basicConfig(level='DEBUG')
+
 
 if __name__ == '__main__':
     config.parse_args(sys.argv)

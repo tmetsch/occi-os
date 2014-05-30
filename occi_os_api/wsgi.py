@@ -85,7 +85,6 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         network_backend = network.NetworkBackend()
         networkinterface_backend = network.NetworkInterfaceBackend()
         ipnetwork_backend = network.IpNetworkBackend()
-        ipnetworking_backend = network.IpNetworkInterfaceBackend()
 
         storage_backend = storage.StorageBackend()
         storage_link_backend = storage.StorageLinkBackend()
@@ -102,11 +101,12 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         self.register_backend(infrastructure.NETWORK, network_backend)
         self.register_backend(infrastructure.UP, network_backend)
         self.register_backend(infrastructure.DOWN, network_backend)
+        self.register_backend(infrastructure.IPNETWORK, ipnetwork_backend)
+        # will use one backend for the networking links!
         self.register_backend(infrastructure.NETWORKINTERFACE,
                               networkinterface_backend)
-        self.register_backend(infrastructure.IPNETWORK, ipnetwork_backend)
-        self.register_backend(infrastructure.IPNETWORKINTERFACE,
-                              ipnetworking_backend)
+        #self.register_backend(infrastructure.IPNETWORKINTERFACE,
+        #                      networkinterface_backend)
 
         self.register_backend(infrastructure.STORAGE, storage_backend)
         self.register_backend(infrastructure.ONLINE, storage_backend)

@@ -54,6 +54,7 @@ class ComputeBackend(KindBackend, ActionBackend):
         entity.identifier = '/compute/' + uid
 
         # set some attributes
+        entity.attributes['occi.core.id'] = str(uid)
         entity.attributes['occi.compute.hostname'] = instance['hostname']
         entity.attributes['occi.compute.architecture'] = 'x86'
         entity.attributes['occi.compute.cores'] = str(instance['vcpus'])
@@ -79,7 +80,6 @@ class ComputeBackend(KindBackend, ActionBackend):
         instance = vm.get_vm(uid, context)
 
         # set state and applicable actions!
-        # TODO: map to OCCI state!
         state, actions = vm.get_vm_state(uid, context)
         entity.attributes['occi.compute.state'] = state
         entity.actions = actions

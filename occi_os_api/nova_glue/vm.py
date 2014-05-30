@@ -87,10 +87,17 @@ def create_vm(entity, context):
             user_data = entity.attributes[attr]
         # Look for security group. If the group is non-existant, the
         # call to create will fail.
-        if os_addon.SEC_GROUP in mixin.related:
+        elif os_addon.SEC_GROUP in mixin.related:
             secgroup = COMPUTE_API.security_group_api.get(context,
                                                           name=mixin.term)
             sg_names.append(secgroup["name"])
+
+    for link in entity.links:
+        if link.kind == infrastructure.NETWORKINTERFACE:
+            net_id = link.target.attributes['occi.core.id']
+            if requested_networks is None:
+                requested_networks = []
+            requested_networks.append((net_id, None, None))
 
     if not os_template:
         raise AttributeError('Please provide a valid OS Template.')

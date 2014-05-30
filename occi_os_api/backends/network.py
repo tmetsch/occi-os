@@ -27,6 +27,7 @@ Network resource backend.
 
 from occi import backend
 from occi.extensions import infrastructure
+
 from occi_os_api.nova_glue import neutron
 
 
@@ -100,11 +101,10 @@ class IpNetworkBackend(backend.MixinBackend):
         else:
             gw = cidr.split('/')[0]
 
+        dyn = True
         if 'occi.network.allocation' in entity.attributes:
             if entity.attributes['occi.network.allocation'] == 'static':
                 dyn = False
-        else:
-            dyn = True
 
         neutron.create_subnet(ctx, iden, cidr, gw, dynamic=dyn)
 
@@ -144,33 +144,50 @@ class IpNetworkBackend(backend.MixinBackend):
         neutron.delete_subnet(ctx, subnet_id)
 
 
-class IpNetworkInterfaceBackend(backend.MixinBackend):
-    """
-    A mixin backend for the IpNetworkingInterface (covered by
-    NetworkInterfaceBackend).
-    """
-
-    pass
-
-
 class NetworkInterfaceBackend(backend.KindBackend):
     """
     A backend for network links.
+
+    Note: Takes care of the kind networkinginterface and the
+    mixin ipnetworkinginterface simultaneously.
     """
 
     def create(self, link, extras):
         """
         create links between:
-        a) between networks -> router
-        b) between VM and network -> assignment
-        c) floating ips.
+        a) between VM and network:
+           1) port assignment - currently only done on creation (see vm.py).
+           2) floating ips.
+        b) between networks -> router
         """
-        pass
+        # TODO: attributes
+        if link.source.kind == infrastructure.COMPUTE \
+                and link.target.kind == infrastructure.NETWORK:
+            src = link.source.attributes['occi.core.id']
+            trg = link.target.attributes['occi.core.id']
+            tmp = neutron.add_floating_ip(extras['nova_ctx'], src, trg)
+            if tmp is not None:
+                # float ip
+                link.attributes['occi.core.id'] = tmp['floatingip']['id']
+            else:
+                # vnic
+                pass
+        elif link.source.kind == infrastructure.NETWORK \
+                and link.target.kind == infrastructure.NETWORK:
+            # router
+            # router between two networks
+            src = link.source.attributes['occi.core.id']
+            trg = link.target.attributes['occi.core.id']
+            router = neutron.create_router(extras['nova_ctx'], src, trg)
+            link.attributes['occi.core.id'] = router['router']['id']
+        else:
+            raise AttributeError('Not supported.')
 
     def retrieve(self, entity, extras):
         """
         Update the attributes of the links.
         """
+        # TODO!
         pass
 
     def update(self, old, new, extras):
@@ -183,4 +200,16 @@ class NetworkInterfaceBackend(backend.KindBackend):
         """
         Remove a floating ip!
         """
-        pass
+        if link.source.kind == infrastructure.COMPUTE and \
+                        link.target.kind == infrastructure.NETWORK:
+            # remove floating ip.
+            neutron.remove_floating_ip(extras['nova_ctx'],
+                                       link.attributes['occi.core.id'])
+        elif link.source.kind == infrastructure.NETWORK \
+                and link.target.kind == infrastructure.NETWORK:
+            # router between two networks
+            neutron.delete_router(extras['nova_ctx'],
+                                  link.attributes['occi.core.id'],
+                                  link.source.attributes['occi.core.id'])
+        else:
+            raise AttributeError('Not supported.')
