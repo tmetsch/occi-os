@@ -87,5 +87,5 @@ The general naming scheme for the Python eggs is:
 
 # Deployment using Puppet
 This library can be integrated using puppet as a configuration management tool.
-See [this blog post for more details](http://www.cloudcomp.ch/2012/09/automating-occi-installations/).
+See [this blog post for more details](http://blog.zhaw.ch/icclab/automating-occi-installations/).
 
